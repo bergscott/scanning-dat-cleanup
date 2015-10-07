@@ -14,6 +14,7 @@ COURSE_NUM_START = 84
 COURSE_NUM_END = 89
 DATE_START = 66
 DATE_END = 73
+LINE_LENGTH = 291
 
 def clean_line_ends(questions):
     oldfile = open(FILENAME, 'r')
@@ -25,7 +26,8 @@ def clean_line_ends(questions):
     toadd += '\n'
     newlines = ''
     for l in lines:
-        newlines += l[:ANSWERS_START+questions] + toadd
+        if len(l) == LINE_LENGTH:
+            newlines += l[:ANSWERS_START+questions] + toadd
     newfile = open(FILENAME, 'w')
     newfile.write(newlines)
     newfile.close()
@@ -141,9 +143,6 @@ def report_asterisks(key):
         for q in asterisksList:
             report += str(q) + ', '
         return report[:-2]
-            
 
 def change_prompt(filename):
     raise NotImplementedError
-
-    
