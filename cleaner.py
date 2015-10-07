@@ -177,6 +177,7 @@ class ScannedExam(object):
         for line in datFile:
             if len(line) == LINE_LENGTH:
                 self.responses.append(StudentResponse(line))
+        datFile.close()
     def get_key(self):
         return self.key
     def get_responses(self):
