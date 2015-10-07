@@ -4,6 +4,8 @@ FILENAME = 'vbextrct.dat'
 NAME_START = 40
 NAME_END = 58
 NAME_LEN = NAME_END - NAME_START + 1
+FIRST_NAME_START = 59
+FIRST_NAME_END = 64
 ANSWERS_START = 90
 ANSWERS_END = 289
 ANSWERS_LEN = ANSWERS_END - ANSWERS_START + 1
@@ -14,8 +16,176 @@ COURSE_NUM_START = 84
 COURSE_NUM_END = 89
 DATE_START = 66
 DATE_END = 73
+ID_START = 74
+ID_END = 82
 LINE_LENGTH = 291
 
+class ScannedSheet(object):
+    def __init__(self, line):
+        """
+        Creates an instance of the ScannedSheet class from line in a .dat file, 
+        representing a bubble scan sheet with attributes, NAME (last name) and
+        ANSWERS (200 question responses)
+
+        line: str (from ScanTools .dat file (length = 291))
+        """
+        self.name = line[NAME_START:NAME_END+1]
+        self.answers = line[ANSWERS_START:ANSWERS_END+1]
+
+class StudentResponse(ScannedSheet):
+    def __init__(self, line):
+        """
+        Creates an instance of the StudentResponse class from line in a
+        .dat file, representing a bubble scan sheet of a student's response
+        with attributes:
+        NAME (last name)
+        FIRSTNAME (first name) 
+        ANSWERS (200 question responses)
+        ID (last nine digits of student ID number) 
+
+        line: str (from ScanTools .dat file (length = 291))
+        """
+        ScannedSheet.__init__(self, line)
+        self.id = line[ID_START:ID_END+1]
+        self.firstName = line[FIRST_NAME_START:FIRST_NAME_END+1]
+
+class AnswerKey(ScannedSheet):
+    def __init__(self, line):
+        """
+        Creates an instance of the AnswerKey class from line in a .dat file,
+        representing an instructor's answer key bubble scan sheet with
+        attributes:
+        NAME (userID)
+        ANSWERS (200 question answers)
+        DATE (date exam administered)
+        COURSE (4 or 5 digit course number)
+        EXAMLENGTH (number of questions on exam)
+        KEYINDICATED (True if '1' was bubbled in column A on sheet to denote
+        sheet is key, otherwise False)
+
+        line: str (from ScanTools .dat file (length = 291))
+        """
+        ScannedSheet.__init__(self, line)
+        self.date = line[DATE_START:DATE_END+1]
+        self.course = line[COURSE_NUM_START:COURSE_NUM_END+1]
+        try:
+            self.examLength = int(line[NUMQ_START:NUMQ_END+1])
+            assert self.examLength <= ANSWERS_LEN
+        except (ValueError, AssertionError):
+            self.examLength = None
+        self.keyIndicated = line[74] == '1'
+
+    def is_valid_date(self, date):
+        """
+        Checks date string in form MMDDYYYY to see if it is a valid date or all
+        blank space.
+        If valid or blank space, returns True, otherwise False.
+
+        date: a str
+        returns: bool
+        """
+        # check date string for all blank spaces or improper format
+        allBlank = True
+        for c in date:
+            if allBlank and c != ' ':
+                allBlank = False
+            if not allBlank:
+                if c in [' ', '*']:
+                    return False
+        if allBlank: return True
+        # if complete date string, check if valid date
+        try:
+            datetime.date(int(date[4:8]), int(date[0:2]), int(date[2:4]))
+            return True
+        except ValueError:
+            return False
+
+    def noise_detected(self):
+        """
+        Returns True if any character in self.answers after the first
+        self.examLength characters is not ' ', otherwise returns false.
+
+        returns: bool
+        """
+        for c in self.answers[self.examLength:]:
+            if c != ' ':
+                return True
+        return False
+
+    def find_asterisks(self, answers):
+        """
+        Returns a list of indexes where answers[i] == '*'.  If no asterisks in
+        answers, returns []
+
+        answers: a str
+        returns: a list of int
+        """
+        astQuests = []
+        for i in xrange(len(answers)):
+            if answers[i] == '*':
+                astQuests.append(i)
+        return astQuests
+
+    def report_asterisks(self):
+        """
+        Returns a string representation of the question numbers on the key
+        that were scanned as asterisks (*), denoting a scanning error.
+
+        Returns: a str
+        """
+        asterisksList = self.find_asterisks(self.answers)
+        if len(asterisksList) == 0:
+            return 'No asterisks on key.'
+        else:
+            report = 'Asterisk found on question(s) '
+            for elem in asterisksList:
+                report += str(elem+1) + ', '
+            return report[:-2]
+
+    def __str__(self):
+        """
+        Returns a string representation of an answer key, reporting any
+        potential errors
+
+        returns: str
+        """
+        toPrint = '[1] Name on exam:\t\t' + self.name
+        toPrint += '\n[2] Number of questions:\t' + str(self.examLength)
+        toPrint += '\n[3] Course number:\t\t' + self.course
+        if self.is_valid_date(self.date):
+            toPrint += '\n[4] Date:\t\t\t' + \
+                    '{}/{}/{}'.format(self.date[0:2], self.date[2:4], \
+                                      self.date[4:8])
+        else:
+            toPrint += '\n[4] Date:\t\t\tINVALID DATE!'
+        if self.keyIndicated:
+            toPrint += '\n[5] Key Indicator:\t\tok'
+        else:
+            toPrint += '\n[5] Key Indicator:\t\tINCORRECT'
+        if self.noise_detected():
+            toPrint += '\n[6] Errant marks detected at end of key. Dark sheet?'
+        else:
+            toPrint += '\n[6] Noise check passed.'
+        toPrint += '\n[7] ' + self.report_asterisks()
+        return toPrint
+
+class ScannedExam(object):
+    def __init__(self, filename):
+        datFile = open(filename, 'r')
+        self.key = AnswerKey(datFile.readline())
+        self.responses = []
+        for line in datFile:
+            if len(line) == LINE_LENGTH:
+                self.responses.append(StudentResponse(line))
+    def get_key(self):
+        return self.key
+    def get_responses(self):
+        return self.responses
+
+def load_exam(filename='vbextrct.dat'):
+    return ScannedExam(filename)
+
+######## Old Functions to Port to OOP Model ########
 def clean_line_ends(questions):
     oldfile = open(FILENAME, 'r')
     lines = oldfile.readlines()
@@ -69,80 +239,6 @@ def replace_key(newKey, f):
     newfile = open(f, 'w')
     newfile.writelines(lines)
     newfile.close()
-
-def show_info(filename):
-    datFile = open(filename, 'r')
-    key = datFile.readline()
-    datFile.close()
-    name = key[NAME_START:NAME_END+1].rstrip()
-    numQuestions = key[NUMQ_START:NUMQ_END+1]
-    courseNum = key[COURSE_NUM_START:COURSE_NUM_END+1].strip()
-    date = key[DATE_START:DATE_END+1]
-    print '[1] Name on exam:\t\t' + name
-    print '[2] Number of questions:\t' + numQuestions
-    print '[3] Course number:\t\t' + courseNum
-    if is_valid_date(date):
-        print '[4] Date:\t\t\t' + '{}/{}/{}'.format(date[0:2], date[2:4], date[4:8])
-    else:
-        print '[4] Date:\t\t\tINVALID DATE!'
-    if key[KEY_INDICATOR] == '1':
-        print '[5] Key Indicator:\t\tok'
-    else:
-        print '[5] Key Indicator:\t\tINCORRECT'
-    if detect_noise(key, int(numQuestions)):
-        print '[6] Errant marks detected at end of key. Dark sheet?'
-    else:
-        print '[6] Noise check passed.'
-    print '[7] ' + report_asterisks(key)
-    
-def detect_noise(key, numQuestions):
-    for c in key[ANSWERS_START+numQuestions:ANSWERS_END+1]:
-        if c != ' ':
-            return True
-    return False
-
-def is_valid_date(date):
-    """
-    Checks date string in form MMDDYYYY to see if it is a valid date or all
-    blank space.
-    If valid or blank space, returns True, otherwise False.
-
-    date: a str
-    returns: bool
-    """
-    # check date string for all blank spaces or improper format
-    allBlank = True
-    for c in date:
-        if allBlank and c != ' ':
-            allBlank = False
-        if not allBlank:
-            if c in [' ', '*']:
-                return False
-    if allBlank: return True
-    
-    # if complete date string, check if valid date
-    try:
-        datetime.date(int(date[4:8]), int(date[0:2]), int(date[2:4]))
-        return True
-    except ValueError:
-        return False
-
-def asterisk_check(key):
-    astQuests = []
-    for i in range(ANSWERS_START, ANSWERS_END+1):
-        if key[i] == '*':
-            astQuests.append(i + 1 - ANSWERS_START)
-    return astQuests
-
-def report_asterisks(key):
-    asterisksList = asterisk_check(key)
-    if len(asterisksList) == 0:
-        return 'No asterisks on key.'
-    else:
-        report = 'Asterisk found on question(s) '
-        for q in asterisksList:
-            report += str(q) + ', '
-        return report[:-2]
 
 def prompt_change(filename):
     while True:
