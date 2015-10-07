@@ -144,5 +144,40 @@ def report_asterisks(key):
             report += str(q) + ', '
         return report[:-2]
 
-def change_prompt(filename):
-    raise NotImplementedError
+def prompt_change(filename):
+    while True:
+        choice = raw_input('Choose key attribute to change (1-7, q to quit): ')
+        if choice == '1':
+            name = raw_input('Enter new name: ').upper()
+            change_name(filename, name)
+        if choice == '2':
+            numQ = int(raw_input('Enter new number of questions: '))
+            change_num_questions(filename, numQ)
+        if choice == '3':
+            courseNum = raw_input('Enter new course number: ')
+            change_course_num(filename, courseNum)
+        if choice == '4':
+            date = raw_input('Enter new date (MMDDYYYY)')
+            change_date(filename, date)
+        if choice == '5':
+            choice = raw_input('Add key indicator (y/n)?: ').lower()
+            if choice == 'y':
+                add_key_indicator(filename)
+            if choice == 'n':
+                pass
+            else:
+                print 'Invalid choice!'
+        if choice == '6':
+            choice = raw_input('Clean end of key (y/n)?: ').lower()
+            if choice == 'y':
+                clean_key_end(filename)
+            if choice == 'n':
+                pass
+            else:
+                print 'Invalid choice!'
+        if choice == '7':
+            replace_asterisks(filename)
+        if choice in ['q', 'Q']:
+            break
+        else:
+            print 'Invalid choice!'
