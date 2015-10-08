@@ -27,17 +27,30 @@ class ScannedSheet(object):
     def __init__(self, line):
         """
         Creates an instance of the ScannedSheet class from line in a .dat file, 
-        representing a bubble scan sheet with attributes, NAME (last name) and
+        representing a bubble scan sheet with attributes:
+        HEADER (bookeeping string created by ScanTools)
+        NAME (last name or user ID)
         ANSWERS (200 question responses)
         line: str (from ScanTools .dat file (length = 291))
         """
+        self.header = line[:NAME_START]
         self.name = line[NAME_START:NAME_END+1].rstrip()
         self.answers = line[ANSWERS_START:ANSWERS_END+1]
 
     def get_name(self):
+        """
+        Returns last name field of scanned sheet
+        returns: str
+        """
         return self.name
 
     def set_name(self, name):
+        """
+        Checks to see if NAME exceeds maximum length then sets the last name
+        field of scanned sheet. Raises ValueError if maximum length is exceeded.
+        name: str
+        mutates: self.name
+        """
         if len(name) <= NAME_LEN:
             self.name = name
         else:
@@ -82,7 +95,13 @@ class StudentResponse(ScannedSheet):
         return self.firstName
 
     def assemble(self):
-        result = ' '*NAME_START
+        """
+        Returns a string conversion of the attributes of the
+        StudentResponse instance for writing to data file.  Format of string
+        is consistent with output of ScanTools program.
+        returns: str
+        """
+        result = self.header
         result += self.name + ' '*(NAME_LEN - len(self.name))
         result += self.firstName + ' '*(FIRST_NAME_LEN - len(self.firstName))
         result += ' '*(ID_START - FIRST_NAME_END - 1)
@@ -249,7 +268,13 @@ class AnswerKey(ScannedSheet):
         print toPrint
 
     def assemble(self):
-        result = ' '*NAME_START
+        """
+        Returns a string conversion of the attributes of the
+        StudentResponse instance for writing to data file.  Format of string
+        is consistent with output of ScanTools program.
+        returns: str
+        """
+        result = self.header
         result += self.name + ' '*(NAME_LEN - len(self.name))
         result += ' '*(DATE_START - NAME_END - 1)
         result += self.date
@@ -265,6 +290,16 @@ class AnswerKey(ScannedSheet):
 
 class ScannedExam(object):
     def __init__(self, filename):
+        """
+        Creates an instance of the ScannedExam class representing an answer key
+        and group of student response sheets scanned together. Derives
+        attributes from ScanTools data file at location FILENAME.
+        ATTRIBUTES:
+        key: AnswerKey
+        responses: list of StudentResponse
+        
+        filename: str
+        """
         datFile = open(filename, 'r')
         self.key = AnswerKey(datFile.readline())
         self.responses = []
@@ -274,16 +309,40 @@ class ScannedExam(object):
         datFile.close()
         
     def get_key(self):
+        """
+        Returns self.key (the answer key of the scanned exam)
+        returns: AnswerKey
+        """
         return self.key
 
     def get_responses(self):
+        """
+        Returns self.responses (a list of the student response sheets)
+        returns: list of StudentResponse
+        """
         return self.responses
 
     def __iter__(self):
+        """
+        Creates generator object that iteratively yields self.key then each
+        member of self.responses.  Analogous to yielding one line of the 
+        scanned data file at a time.
+
+        yields: AnswerKey or StudentResponse
+        """
         for sheet in [self.key] + self.responses:
             yield sheet
             
     def write_file(self, filename='test.dat', overwrite=True):
+        """
+        Writes key and responses to data file, FILENAME. Calls ASSEMBLE methods
+        of ScannedSheet subclasses to convert ScannedSheet attributes to string.
+        If OVERWRITE is False, checks to see if file of FILENAME exists.  If it
+        exists, prompts the user to confirm overwrite before proceeding.
+
+        filename: str
+        overwrite: boolean
+        """
         if not overwrite:
             try:
                 f = open(filename)
@@ -299,9 +358,11 @@ class ScannedExam(object):
                         print 'Invalid choice!'
             except IOError:
                 pass
-        newFile = open(filename, 'w')
+        toWrite = ''
         for sheet in self:
-            newFile.write(sheet.assemble())
+            toWrite += sheet.assemble()
+        newFile = open(filename, 'w')
+        newFile.write(toWrite)
         newFile.close()
 
 def load_exam(filename='vbextrct.dat'):
