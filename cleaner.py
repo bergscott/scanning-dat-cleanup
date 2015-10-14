@@ -57,7 +57,7 @@ class ScannedSheet(object):
             raise ValueError('NAME must be no greater than ' + str(NAME_LEN) +\
                     ' characters long.')
 
-    def get_answers(self, name):
+    def get_answers(self):
         return self.answers
     
     def set_answer(self, qNum, ans):
@@ -65,6 +65,7 @@ class ScannedSheet(object):
         Sets the answer to question number QNUM to ANS and updates self.answers
         qNum: int
         ans: str or int in [1, 2, 3, 4, 5, '1', '2', '3', '4', '5', ' ']
+        mutates: self.answers
         """
         assert ans in [1,2,3,4,5,'1','2','3','4','5', ' ']
         self.answers = self.answers[:qNum-1] + str(ans) + self.answers[qNum:]
@@ -240,6 +241,35 @@ class AnswerKey(ScannedSheet):
                 report += str(elem+1) + ', '
             return report[:-2]
 
+    def replace_asterisks(self, asterList):
+        """
+        Prompts user for new answer for each answer on key that is an asterisk.
+        Replaces the asterisk with the input.
+        asterList: a list of int (list of asterisk indexes from 
+                   self.find_asterisks)
+        mutates: self.answers
+        """
+        for index in asterList:
+            qNum = index + 1
+            while True:
+                newAns = raw_input('Enter the new answer for question ' + \
+                                   str(qNum) + ': ')
+                try:
+                    self.set_answer(qNum, newAns)
+                    break
+                except AssertionError:
+                    print 'Invalid replacement answer. Try again.'
+
+    def clear_end(self, examLength):
+        """
+        For all characters in self.answers beyond examLength, replaces existing
+        value with ' '.
+        examLength: int (number of questions on exam)
+        mutates: self.answers
+        """
+        cleanEnd = ' ' * (ANSWERS_LEN - examLength)
+        self.answers = self.answers[:examLength] + cleanEnd
+        
     def print_status(self):
         """
         Prints a string representation of an answer key, reporting any
@@ -333,7 +363,7 @@ class ScannedExam(object):
         for sheet in [self.key] + self.responses:
             yield sheet
             
-    def write_file(self, filename='test.dat', overwrite=True):
+    def write_file(self, filename='vbextrct.dat', overwrite=True):
         """
         Writes key and responses to data file, FILENAME. Calls ASSEMBLE methods
         of ScannedSheet subclasses to convert ScannedSheet attributes to string.
@@ -365,8 +395,56 @@ class ScannedExam(object):
         newFile.write(toWrite)
         newFile.close()
 
+    def prompt_change(self):
+        """
+        Displays exam attributes and presents options to user for changes.
+        Modifies attributes based on user's input.
+        """
+        prompt = 'Choose key attribute to change (1-7, w to write, q to quit): '
+        while True:
+            print #blank line
+            self.key.print_status()
+            print #blank line
+            choice = raw_input(prompt).lower()
+            print #blank line
+            if choice == '1':
+                name = raw_input('Enter new name: ').upper()
+                self.key.set_name(name)
+            elif choice == '2':
+                numQ = int(raw_input('Enter new number of questions: '))
+                self.key.set_examLength(numQ)
+            elif choice == '3':
+                courseNum = raw_input('Enter new course number: ')
+                self.key.set_course(courseNum)
+            elif choice == '4':
+                date = raw_input('Enter new date (MMDDYYYY): ')
+                self.key.set_date(date)
+            elif choice == '5':
+                print 'Key Indicator is automatically added on write.'
+            elif choice == '6':
+                choice = raw_input('Clean end of key (y/n)?: ').lower()
+                if choice == 'y':
+                    self.key.clear_end(self.key.get_examLength())
+                elif choice == 'n':
+                    pass
+                else:
+                    print 'Invalid choice!'
+            elif choice == '7':
+                self.key.replace_asterisks(self.key.find_asterisks(
+                                           self.key.get_answers()))
+            elif choice == 'w':
+                self.write_file(filename='test.dat')
+                print 'File written!'
+                break
+            elif choice == 'q':
+                print 'Exiting without write...'
+                break
+            else:
+                print 'Invalid choice!'
+
 def load_exam(filename='vbextrct.dat'):
-    return ScannedExam(filename)
+    exam = ScannedExam(filename)
+    exam.prompt_change()
 
 def test():
     exam = load_exam()
@@ -375,6 +453,9 @@ def test():
     key.set_date('10082015')
     key.print_status()
     exam.write_file(filename='test.dat', overwrite=False)
+    exam.prompt_change()
+    
+# load_exam()
 
 ######## Old Functions to Port to OOP Model ########
 def clean_line_ends(questions):
@@ -392,41 +473,3 @@ def clean_line_ends(questions):
     newfile = open(FILENAME, 'w')
     newfile.write(newlines)
     newfile.close()
-
-def prompt_change(filename):
-    while True:
-        choice = raw_input('Choose key attribute to change (1-7, q to quit): ')
-        if choice == '1':
-            name = raw_input('Enter new name: ').upper()
-            change_name(filename, name)
-        if choice == '2':
-            numQ = int(raw_input('Enter new number of questions: '))
-            change_num_questions(filename, numQ)
-        if choice == '3':
-            courseNum = raw_input('Enter new course number: ')
-            change_course_num(filename, courseNum)
-        if choice == '4':
-            date = raw_input('Enter new date (MMDDYYYY)')
-            change_date(filename, date)
-        if choice == '5':
-            choice = raw_input('Add key indicator (y/n)?: ').lower()
-            if choice == 'y':
-                add_key_indicator(filename)
-            if choice == 'n':
-                pass
-            else:
-                print 'Invalid choice!'
-        if choice == '6':
-            choice = raw_input('Clean end of key (y/n)?: ').lower()
-            if choice == 'y':
-                clean_key_end(filename)
-            if choice == 'n':
-                pass
-            else:
-                print 'Invalid choice!'
-        if choice == '7':
-            replace_asterisks(filename)
-        if choice in ['q', 'Q']:
-            break
-        else:
-            print 'Invalid choice!'
