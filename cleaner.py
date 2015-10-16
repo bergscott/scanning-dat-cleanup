@@ -426,12 +426,9 @@ class ScannedExam(object):
         toWrite = ''
         for sheet in self:
             toWrite += sheet.assemble()
-        try:
-            newFile = open(filename, 'w')
-            newFile.write(toWrite)
-            newFile.close()
-        except IOError as err:
-            print 'Error! Unable to write file: ' + str(err)
+        newFile = open(filename, 'w')
+        newFile.write(toWrite)
+        newFile.close()
 
     def prompt_change(self):
         """
@@ -485,6 +482,9 @@ class ScannedExam(object):
                     raise ValueError('Invalid choice!')
             except ValueError as err:
                 print 'Error: ' + str(err)
+                raw_input('Press ENTER to continue.')
+            except IOError as err:
+                print 'Error: Unable to write file - ' + str(err)
                 raw_input('Press ENTER to continue.')
             else: 
                 raw_input('Success! Press ENTER to continue.')
