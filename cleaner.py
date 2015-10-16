@@ -52,7 +52,7 @@ class ScannedSheet(object):
         mutates: self.name
         """
         if len(name) <= NAME_LEN:
-            self.name = name
+            self.name = name.upper()
         else:
             raise ValueError('NAME must be no greater than ' + str(NAME_LEN) +\
                     ' characters long.')
@@ -67,8 +67,25 @@ class ScannedSheet(object):
         ans: str or int in [1, 2, 3, 4, 5, '1', '2', '3', '4', '5', ' ']
         mutates: self.answers
         """
-        assert ans in [1,2,3,4,5,'1','2','3','4','5', ' ']
+        if not ans in [1,2,3,4,5,'1','2','3','4','5', ' ']:
+            try:
+                ans = self.convert_answer(ans)
+            except ValueError:
+                raise ValueError('New answer must be number 1-5 or letter A-E.')
         self.answers = self.answers[:qNum-1] + str(ans) + self.answers[qNum:]
+
+    def convert_answer(self, ans):
+        """
+        If ans is 'A', 'B', 'C', 'D', or 'E', returns '1', '2', '3', '4', or '5'
+        respectively, otherwise raises ValueError. Ignores case.
+        ans: str
+        returns: str
+        """
+        convertDict = {'A':'1', 'B':'2', 'C':'3', 'D':'4', 'E':'5'}
+        try:
+            return convertDict[ans.upper()]
+        except (KeyError, AttributeError):
+            raise ValueError('Can only convert letters A-E or a-e')
 
     def assemble(self):
         raise NotImplementedError
@@ -177,12 +194,13 @@ class AnswerKey(ScannedSheet):
         Sets self.examLength to LENGTH
         length: an int [0-200]
         """
-        errormsg = 'Exam length must be within [0-200]'
+        maxExamLength = 200
+        errormsg = 'Exam length must be within [0-' + str(maxExamLength) + ']'
         try:
             numQuestions = int(length)
         except ValueError:
             raise ValueError(errormsg)
-        if 0 <= length <= 200:
+        if 0 <= length <= maxExamLength:
             self.examLength = length
         else:
             raise ValueError(errormsg)
@@ -430,7 +448,7 @@ class ScannedExam(object):
             print #blank line
             try:
                 if choice == '1':
-                    name = raw_input('Enter new name: ').upper()
+                    name = raw_input('Enter new name: ')
                     self.key.set_name(name)
                 elif choice == '2':
                     numQ = raw_input('Enter new number of questions: ')
@@ -492,7 +510,7 @@ def test():
 if __name__ == '__main__':
     print # blank line
     print '----------------------------------------------------------'
-    print '   Welcome to Exam Data File Cleaner v0.1 by Scott Berg   '
+    print '   Welcome to Exam Data File Cleaner v0.2 by Scott Berg   '
     print '----------------------------------------------------------'
     while True:
         print # blank line
