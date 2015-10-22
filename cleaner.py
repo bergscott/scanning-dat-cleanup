@@ -200,8 +200,8 @@ class AnswerKey(ScannedSheet):
             numQuestions = int(length)
         except ValueError:
             raise ValueError(errormsg)
-        if 0 <= length <= maxExamLength:
-            self.examLength = length
+        if 0 <= numQuestions <= maxExamLength:
+            self.examLength = numQuestions
         else:
             raise ValueError(errormsg)
 
@@ -510,7 +510,7 @@ def test():
 if __name__ == '__main__':
     print # blank line
     print '----------------------------------------------------------'
-    print '   Welcome to Exam Data File Cleaner v0.2 by Scott Berg   '
+    print '  Welcome to Exam Data File Cleaner v0.2.1 by Scott Berg  '
     print '----------------------------------------------------------'
     while True:
         print # blank line
